@@ -1,0 +1,71 @@
+---
+title: "Aide commandes"
+author: "Etienne Fort"
+date: "2023-01-23"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Ggplot
+
+```{r}
+library(rnaturalearthdata)
+library(rnaturalearth)
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+mapdata <- ggplot(data = world) +
+  geom_point(data = df_map, aes(x = Lon, y = Lat, color = Survey),
+             show.legend = FALSE, size = 0.1) +
+  geom_sf(color = 'grey90', fill = 'grey80') +  theme_classic() +
+  coord_sf(xlim = c(-21, 31), ylim = c( 34.5 , 65),expand = FALSE) +
+  geom_polygon(data = df_ecoregion3, fill = NA, size = 0.5, aes(x = long, y = lat,
+                   group =  interaction(Ecoregion, piece)), color = 'black') +
+  geom_label(data = df_ecoregion3_s, aes(x = lon_m, y = lat_m, label = Ecoregion)) +
+  theme(axis.title = element_blank())
+```
+
+
+#Dplyr
+
+Actions par catégorie
+```{r}
+df_genre_et_sp <- sp_df_pc %>%
+  dplyr::group_by(genre, sp) %>%
+  dplyr::summarise(n = mean(sp))
+
+df_genre_et_sp <- sp_df_pc %>%
+  dplyr::filter(genre != sp) %>%
+  dplyr::group_by(genre, sp) %>%
+  dplyr::summarise(n = mean(predict))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+

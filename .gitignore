@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+Biblio
+*.rtf
+Dataset
+Figures
+Rapport
+Reports
+Word
+.DS_Store
+*.Rproj
