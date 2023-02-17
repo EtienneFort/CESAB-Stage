@@ -1,9 +1,17 @@
-# Présence absences, EF, 31/01/2023
+# Présence absences, EF, 10/02/2023
 #peut enlever tous les dataset multiples de 3
 
+source("Rscripts/Fonctions/Librairies_fonctions.R")
+
+spL<-read.table("Dataset/Info/liste_species_final.txt",header=T)$x
+scenarioL=c('ssp126','ssp370','ssp585')
 
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
+for(sp in spL){
+  #sp=spL[i]
+  load(file=paste0("Dataset/Raw/Data_presence/data_SDM_examples/occurrences/",sp,"_accuracy.Rdata"))
+}
 
 load(file="Dataset/Raw/Data_presence/data_SDM_examples/occurrences/Aldrovandia_affinis_dataset1_with_env.Rdata")
 dataset1=df_occurences_dataset

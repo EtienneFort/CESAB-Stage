@@ -6,7 +6,7 @@ spL<-read.table("Dataset/Info/liste_species_final.txt",header=T)$x
 
 for(sp in spL){
   #sp=spL[i]
-  load(file=paste0("Dataset/Raw/Data_presence/Data_SDM_examples/accuracy/",sp,"_accuracy.Rdata"))
+  load(file=paste0("Dataset/Processed/data_for_SDM/accuracy/",sp,"_accuracy.Rdata"))
   df_accu_last=df_accu_last[-which(df_accu_last$dataset == 11),]
   
   df_accu_last$TN_rate = df_accu_last$TN/(df_accu_last$TN+df_accu_last$FP)

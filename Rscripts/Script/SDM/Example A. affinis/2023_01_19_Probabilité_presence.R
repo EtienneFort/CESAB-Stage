@@ -39,91 +39,55 @@ for(sp in spL){
 }
 
 
+### delta
 
+for(sp in spL){
+  #present
+  load(file=paste0("Dataset/Processed/data_for_SDM/spatial_prediction/pst/",sp,".Rdata"))
+  
 
+  #troncage des donnees au niveau europeen
+  df_pst=filter(df_pst,between(lon,-15,45),between(lat,20,65))
 
+  ##futur
+  file_name=paste0("Dataset/Processed/data_for_SDM/spatial_prediction/futur/",sp,"_MPI-ESM1-2-HR_ssp585.Rdata")
+  load(file=file_name)
+  
+  #troncage des donnees au niveau europeen
+  df_predict=filter(df_predict,between(lon,-15,45),between(lat,20,65))
+  df_predict=df_predict[,- which(names(df_predict) == "modele_cmip6")]
 
-#################################
-#Premiers essais
-
-##present
-sp=spL[1]
-load(file=paste("Dataset/Raw/Data_presence/spatial_prediction/pst/",sp,".Rdata",sep=""))
-head(df_pst)
-#troncage des donnees au niveau europeen
-df_pst=filter(df_pst,between(lon,-15,45),between(lat,20,65))
-
-###plot
-world <- ne_countries(scale = "medium", returnclass = "sf")
-
-#représente le dernier modele uniquement, et le dernier dataset
-ggplot(data=df_pst) + geom_tile(aes(x=lon,y=lat,fill=predict)) + 
-  geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() + 
-  coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c()
-
-#dernier modele
-last_modele=df_pst$modele[length(df_pst$sp)]
-xgb_data=data.frame(predict=predict_xgb,lon=mean_lon,lat=mean_lat)
-
-ggplot(data=xgb_data) + geom_tile(aes(x=lon,y=lat,fill=predict)) + 
-  geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() + 
-  coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c()
-
-#representation par modele, dernier dataset
-ggplot(data=df_pst) + facet_wrap(~ modele) + geom_tile(aes(x=lon,y=lat,fill=predict)) +
- geom_sf(data=world,color = 'grey90', fill = 'grey80') + theme_classic() +
- coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c()
-
-#representation par modele et par dataset
-ggplot(data=df_pst) + facet_grid(modele ~ dataset ) + geom_tile(aes(x=lon,y=lat,fill=predict)) + 
-  geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() + 
-  coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c()
-
-#facet_wrap pour plusieurs plot, geom_tile pour heatmap
-
-
-glm_pos=which(df_pst$modele == "glm")
-glm_nb=length(glm_pos)
-mean_lon=df_pst$lon[glm_pos]
-mean_lat=df_pst$lat[glm_pos]
-
-
-#test moyenne des dataset
-nb_data_dataset=length(which(df_pst$modele == "glm" & df_pst$dataset == 1))
-
-#moyenne des dataset
-newdat_last_modele = df_pst %>%
-  dplyr::group_by(lon,lat,modele) %>%
-  dplyr::summarise(mean_predict3=mean(predict, na.rm=T))
-
-ggplot(data=newdat_last_modele) + facet_wrap(~ modele) + geom_tile(aes(x=lon,y=lat,fill=mean_predict3)) +
-  geom_sf(data=world,color = 'grey90', fill = 'grey80') + theme_classic() +
-  coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c()
-
-#moyenne des modeles et dataset
-newdat_last_mean= df_pst %>%
-  dplyr::group_by(lon,lat) %>%
-  dplyr::summarise(mean_predict4=mean(predict, na.rm=T))
-
-ggplot(data=newdat_last_mean) + geom_tile(aes(x=lon,y=lat,fill=mean_predict4)) + 
-  geom_sf(data=world, color = 'grey90', fill = 'grey80')  + theme_classic() +
-  coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c()
-
-
-
-###futur
-scenarioL=c('_ssp126_','_ssp370_','_ssp585_')
-scenario=scenarioL[3]
-file_name=paste("Dataset/Raw/Data_presence/spatial_prediction/futur/",sp,scenario,".Rdata",sep="")
-load(file=file_name)
-head(df_predict)
-df_predict=filter(df_predict,between(lon,-15,45),between(lat,20,65))
-
-#plot
-quartz
-ggplot(data=df_predict) + facet_wrap(~ year_mean) + geom_tile(aes(x=lon,y=lat,fill=predict_m2)) + 
+  colnames(df_pst)[which(names(df_pst) == c("predict_m","year_mean"))] <- c("predict_m_pst","pst")
+  colnames(df_predict)[which(names(df_predict) == "predict_m")] <- "predict_m_fut"
+  
+  df_pred_commun = merge(df_pst,df_predict,by = c("lon","lat"))
+  
+  delta = df_pred_commun$predict_m_fut - df_pred_commun$predict_m_pst
+  delta_perc = (df_pred_commun$predict_m_fut - df_pred_commun$predict_m_pst) / 
+    df_pred_commun$predict_m_pst *100 
+  
+  df_delta = df_pred_commun[,c(1,2,5)]
+  #df_delta_perc = df_delta
+  df_delta$delta = delta
+  #df_delta_perc$delta_perc = delta_perc 
+  
+  name_delta=paste0(sp,"_delta_predict")
+  assign(name_delta,df_delta,.GlobalEnv)
+  print(name_delta)
+  
+  ggplot(data=df_delta) + facet_wrap(~ year_mean) + geom_tile(aes(x=lon,y=lat,fill=delta)) + 
   geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
-  coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c()
+  coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + 
+  scale_fill_gradient2(low = 'blue', mid = 'white', high = 'red',name=c("Delta of probability")) +
+  ggtitle(paste("Delta of",sp,"probability presence",sep=" "))
 
+  # ggplot(data=df_delta_perc) + facet_wrap(~ year_mean) + geom_tile(aes(x=lon,y=lat,fill=delta)) + 
+  # geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
+  # coord_sf(xlim = c(-15, 45), ylim = c(20 , 65),expand = FALSE) + scale_fill_viridis_c(name=c("Percentage")) +
+  # ggtitle("Delta of Aldrovandia_affinis presence")
+  
+  ggsave(filename= file.path("Figures/Probabilité_presence/Delta_prediction",paste0(name_delta,".pdf")))
+  ggsave(filename= file.path("Figures/Probabilité_presence/Delta_prediction",paste0(name_delta,".png")))
+}
 
 
