@@ -7,6 +7,10 @@ library(rnaturalearthdata)
 library(rnaturalearth)
 library(gridExtra)
 library(ggpubr)
+library(ggridges)
+library(viridis)
+library(hrbrthemes)
+library("stringr")
 
 
 #remaniement de data
@@ -18,3 +22,4 @@ library(reshape2)
 library(RColorBrewer)
 library(wesanderson)
 library(RColorBrewer)
+

@@ -124,6 +124,7 @@ ST_mean = df_proba %>%
                 low_IC = predict_mean - 1.96*sd/sqrt(nb_points))
 
 ST_mean$species="Aldrovandia_affinis"
+ST_mean$species = str_replace(ST_mean$species,"_"," ")
 
 # if(sp == spL[1]){
 #   assign("ST_proba_presence", ST_mean, .GlobalEnv)
@@ -140,8 +141,8 @@ assign("ST_proba_presence", ST_mean, .GlobalEnv)
 
 quartz(height = 5, width = 11 )
 ggplot(ST_proba_presence, aes(x=year_mean, y = predict_mean)) + facet_wrap(~ species,scales="free_y") +
-  geom_ribbon(aes(x=year_mean,ymin=low_IC,ymax=high_IC),color=NA,alpha=0.2) + geom_point(size=0.5) +
-  geom_line() + theme_bw()
+  geom_ribbon(aes(x=year_mean,ymin=low_IC,ymax=high_IC),color=NA,alpha=0.2,fill='#FCDCDA') + geom_point(size=0.5, color='#FCDCDA') +
+  geom_line(color='#FCDCDA') + theme_bw() + theme(strip.text.x = element_text(face = "italic")) 
 
 
 ###########
@@ -204,6 +205,7 @@ for(sp in spL){
   
   ST_mean$species=sp
   
+  
   if(sp == spL[1]){
     assign("ST_proba_presence", ST_mean, .GlobalEnv)
   } else {
@@ -216,13 +218,14 @@ for(sp in spL){
   # print(name_ST_mean)
 }
 
+ST_proba_presence$species = str_replace(ST_proba_presence$species,"_"," ")
 
 quartz(height = 5, width = 11 )
 ggplot(ST_proba_presence, aes(x=year_mean, y = predict_mean, color=scenario)) +
-  facet_wrap(~ species,scales="free_y",ncol=5) + 
+  facet_wrap(~ species,scales="free_y",ncol=5) + scale_color_manual(values = c(''))
   geom_ribbon(aes(x=year_mean,ymin=low_IC,ymax=high_IC,fill=scenario),color=NA,alpha=0.2) + 
   geom_point(size=0.5) + geom_line() + ggtitle("Time series of habitat suitability + CI") + 
-  theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5)) + theme(strip.text.x = element_text(face = "italic"))
 
 
 
