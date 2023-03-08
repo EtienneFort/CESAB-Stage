@@ -62,7 +62,7 @@ for (csp in cuts_spL){
   ggplot(data=predict_all) + facet_wrap(~ year_mean) + 
     geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean)) +
     geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
-    scale_fill_gradient2(high = '#F8766D', mid = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
     ggtitle(spL[i])
 
   name_binary=paste0(spL[i],"_binary_predict")
@@ -73,15 +73,25 @@ for (csp in cuts_spL){
   predict_85 = filter(predict_all,year_mean == 2005 | year_mean == 2085)
   
   ggplot(data=predict_85) + facet_wrap(~ year_mean, nrow = 2) + 
-    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean)) +
+    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean, color = bin_pred_mean)) +
     geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
-    scale_fill_gradient2(high = '#F8766D', mid = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_color_gradient2(mid = '#F8766D', high = '#619CFF', guide = NULL) +
     ggtitle(spL[i])
   
   name_binary_85=paste0(spL[i],"_binary_predict_85") 
   
   ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,".pdf")))
   ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,".png")))
+  
+  ggplot(data=predict_85) + facet_wrap(~ year_mean, nrow = 2) + 
+    geom_point(aes(x=lon,y=lat,color=as.factor(bin_pred_mean)), size=0.1) +
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
+    scale_color_manual(values=c("#F8766D","#619CFF"), name=c("Binary habitat suitability")) +
+    ggtitle(spL[i])
+  
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,"_points.pdf")))
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,"_points.png")))
   
   # Delta
   predict_85_only = filter(df_predict, year_mean == 2085)
@@ -110,5 +120,6 @@ for (csp in cuts_spL){
   
   i = i + 1
 }
+
 
 
