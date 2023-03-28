@@ -89,3 +89,5 @@ ggplot(accuracy_all_mean_m, aes(x = reorder(model, -AUC_mean), y=AUC_mean)) +
   geom_point(fill="grey")   + theme_bw() + xlab("Model") + ylab("Mean AUC") +
   geom_text(aes(label = round(AUC_mean,digit=2)), vjust = -0.6)
 
+
+load(paste0(filepath,"/accuracy_all.Rdata"))

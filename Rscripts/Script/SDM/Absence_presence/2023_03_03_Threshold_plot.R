@@ -5,121 +5,174 @@ source("Rscripts/Fonctions/Librairies_fonctions.R")
 filepath <- file.path("Dataset/Output/threshold")
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
-load(paste0(filepath,"/cuts_all_Aldrovandia_affinis.Rdata"))
-cuts_affinis = cuts_all
-
-load(file=paste0("Dataset/Processed/data_for_SDM/spatial_prediction/pst/Aldrovandia_affinis.Rdata"))
-df_pst_affinis = df_pst
-
-# sans le cutoff mean
-for (opt in 1:nrow(cuts_affinis)){
-  bin_pred_mean <- ifelse(df_pst$"predict_m" < cuts_affinis$cutoff_mean_TSS_dts[opt], 0, 1)
-  df_pst_affinis = cbind(df_pst_affinis,bin_pred_mean)
-  colnames(df_pst_affinis)[ncol(df_pst_affinis)]=paste0("bin_pred_mean",opt)
-}
+spL <-read.table("Dataset/Info/liste_species_final.txt",header=T)$x
 
 
-
-df_pst_affinis = reshape2::melt(df_pst_affinis,id=c("lon","lat","year_mean","predict_m"))
-
-name_binary=paste0(sp,"_binary_predict")
-
-quartz(width = 11, height = 7)
-ggplot(data=df_pst_affinis) + facet_wrap( ~ variable) + 
-  geom_tile(aes(x=lon,y=lat,fill=value)) +
-  geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
-  scale_fill_gradient2(high = '#F8766D', mid = '#619CFF',name=c("Presence/Absence")) +
-  ggtitle(sp)
-
-ggsave(filename= file.path("Figures/Probabilité_presence/Binary",paste0(name_binary,".pdf")))
-ggsave(filename= file.path("Figures/Probabilité_presence/Binary",paste0(name_binary,".png")))
-
-
-#avec le cutoff mean
-
-cuts_spL = list.files(filepath)
-spL<-read.table("Dataset/Info/liste_species_final.txt",header=T)$x
-i = 1
-
-for (csp in cuts_spL){
+for (sp in spL){
+  print(sp)
+  load(paste0(filepath,"/",sp,"_cuts_all.Rdata"))
   
-  #cutoff
-  load(paste0(filepath,"/",csp))
   
-  #pst
-  load(file=paste0("Dataset/Processed/data_for_SDM/spatial_prediction/pst/",spL[i],".Rdata"))
-  df_pst$year_mean=2005
+  ### présent 
+  #global
+  name_binary_pst=paste0(sp,"_pst_binary_predict")
+  load(file=paste0("Dataset/Output/binary/pst/",sp,"_binary.Rdata"))
   
-  ##futur
-  file_name=paste0("Dataset/Processed/data_for_SDM/spatial_prediction/futur/",spL[i],"_MPI-ESM1-2-HR_ssp585.Rdata")
-  load(file=file_name)
+  ggplot(data=df_pst) + 
+    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean, color = bin_pred_mean)) +
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') +
+    theme_classic() +
+    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_color_gradient2(mid = '#F8766D', high = '#619CFF', guide = NULL) +
+    ggtitle(paste0(sp,"_pst"))
+  
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/pst/",paste0("G_",name_binary_pst,".pdf")),height = 3.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/pst/",paste0("G_",name_binary_pst,".png")),height = 3.5)
+  
+  #troncage des donnees au niveau europeen
+  df_pst_eu=filter(df_pst,between(lon,-15,45),between(lat,30,65))
+  
+  ggplot(data=df_pst_eu) + 
+    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean, color = bin_pred_mean)) +
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') +
+    coord_sf(xlim = c(-15, 45), ylim = c(30 , 65),expand = FALSE) +
+    theme_classic() +
+    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_color_gradient2(mid = '#F8766D', high = '#619CFF', guide = NULL) +
+    ggtitle(paste0(sp,"_pst"))
+  
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/pst/",paste0("E_",name_binary_pst,".pdf")),height = 3.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/pst/",paste0("E_",name_binary_pst,".png")),height = 3.5)
+  
+  ### futur
+  #global
+  name_binary_fut=paste0(sp,"_fut_binary_predict")
+  load(file=paste0("Dataset/Output/binary/futur/",sp,"_binary.Rdata"))
   df_predict=df_predict[,- which(names(df_predict) == "modele_cmip6")]
   
   predict_all = rbind(df_pst,df_predict)
   
-  predict_all$"bin_pred_mean" <- ifelse(predict_all$"predict_m" < cuts_all$cut_off_mean_opt[1], 0, 1)
-  
   ggplot(data=predict_all) + facet_wrap(~ year_mean) + 
-    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean)) +
-    geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
-    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
-    ggtitle(spL[i])
-
-  name_binary=paste0(spL[i],"_binary_predict")
-
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary,".pdf")))
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary,".png")))
-  
-  predict_85 = filter(predict_all,year_mean == 2005 | year_mean == 2085)
-  
-  ggplot(data=predict_85) + facet_wrap(~ year_mean, nrow = 2) + 
-    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean, color = bin_pred_mean)) +
-    geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
+    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean,color = bin_pred_mean)) +
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') + 
+    theme_classic() +
     scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
     scale_color_gradient2(mid = '#F8766D', high = '#619CFF', guide = NULL) +
-    ggtitle(spL[i])
+    ggtitle(sp)
   
-  name_binary_85=paste0(spL[i],"_binary_predict_85") 
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("G_",name_binary_fut,".pdf")),width = 8.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("G_",name_binary_fut,".png")),width = 8.5)
   
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,".pdf")))
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,".png")))
+  predict_85 = filter(predict_all,year_mean == 2085)
+  name_binary_85=paste0(sp,"_85_binary_predict")
   
-  ggplot(data=predict_85) + facet_wrap(~ year_mean, nrow = 2) + 
-    geom_point(aes(x=lon,y=lat,color=as.factor(bin_pred_mean)), size=0.1) +
-    geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
-    scale_color_manual(values=c("#F8766D","#619CFF"), name=c("Binary habitat suitability")) +
-    ggtitle(spL[i])
+  ggplot(data=predict_85) + 
+    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean, color = bin_pred_mean)) +
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') +
+    theme_classic() +
+    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_color_gradient2(mid = '#F8766D', high = '#619CFF', guide = NULL) +
+    ggtitle(paste0(sp,"_2085"))
   
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,"_points.pdf")))
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/",paste0(name_binary_85,"_points.png")))
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("G_",name_binary_85,".pdf")),height = 3.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("G_",name_binary_85,".png")),height = 3.5)
   
-  # Delta
-  predict_85_only = filter(df_predict, year_mean == 2085)
-  coordonnee = predict_85_only %>%
+  
+  
+  #troncage des donnees au niveau europeen
+  predict_all_eu=filter(predict_all,between(lon,-15,45),between(lat,30,65))
+  
+  ggplot(data=predict_all_eu) + facet_wrap(~ year_mean) + 
+    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean,color = bin_pred_mean)) +
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') + 
+    coord_sf(xlim = c(-15, 45), ylim = c(30 , 65),expand = FALSE) +
+    theme_classic() +
+    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_color_gradient2(mid = '#F8766D', high = '#619CFF', guide = NULL) +
+    ggtitle(sp)
+  
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("E_",name_binary_fut,".pdf")),width = 8.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("E_",name_binary_fut,".png")),width = 8.5)
+  
+  predict_85_eu=filter(predict_85,between(lon,-15,45),between(lat,30,65))
+  
+  ggplot(data=predict_85_eu) + 
+    geom_tile(aes(x=lon,y=lat,fill=bin_pred_mean, color = bin_pred_mean)) +
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') +
+    coord_sf(xlim = c(-15, 45), ylim = c(30 , 65),expand = FALSE) +
+    theme_classic() +
+    scale_fill_gradient2(mid = '#F8766D', high = '#619CFF',name=c("Binary habitat suitability")) +
+    scale_color_gradient2(mid = '#F8766D', high = '#619CFF', guide = NULL) +
+    ggtitle(paste0(sp,"_2085"))
+  
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("E_",name_binary_85,".pdf")),height = 3.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Map_prediction/fut/",paste0("E_",name_binary_85,".png")),height = 3.5)
+  
+  
+  ###delta
+  #global
+  
+  coordonnee = predict_85 %>%
     group_by(lon,lat) %>%
     summarise()
   df_pst_new = merge(coordonnee,df_pst)
   
-  predict_85_new = rbind(df_pst_new,predict_85_only)
-  predict_85_new$"bin_pred_mean" <- ifelse(predict_85_new$"predict_m" < cuts_all$cut_off_mean_opt[1], 0, 1)
-  
+  predict_85_new = rbind(df_pst_new,predict_85)
   predict_85_new = dcast(predict_85_new, lon + lat  ~ year_mean , value.var = "bin_pred_mean")
   colnames(predict_85_new)[-c(1:2)]=paste0("predict_",names(predict_85_new)[-c(1:2)])
+  
   delta = predict_85_new$predict_2085 - predict_85_new$predict_2005
   predict_85_new$"delta" = delta
   
-  name_delta=paste0(spL[i],"_delta_binary_predict_85")
+  name_delta=paste0(sp,"_delta_binary_predict_85")
   
-  ggplot(data=predict_85_new) + geom_tile(aes(x=lon,y=lat,fill=delta)) + 
-    geom_sf(data=world, color = 'grey90', fill = 'grey80') + theme_classic() +
+  ggplot(data=predict_85_new) + 
+    geom_tile(aes(x=lon,y=lat,fill=delta)) + 
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') +
+    theme_classic() +
     scale_fill_gradient2(low = 'blue', mid = 'white', high = 'red',name=c("Gain/loss of habitat suitability"),
-                         limits=c(-1,1)) + ggtitle(spL[i])
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Delta/",paste0(name_delta,".pdf")))
-  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Delta/",paste0(name_delta,".png")))
+                         limits=c(-1,1)) + 
+    scale_color_gradient2(low = 'blue', mid = 'white', high = 'red', guide = NULL) +
+    ggtitle(paste0(sp," between 2000 and 2100"))
+  
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Delta_prediction/",paste0("G_",name_delta,".pdf")),height = 3.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Delta_prediction/",paste0("G_",name_delta,".png")),height = 3.5)
   
   
-  i = i + 1
+  #troncage des donnees au niveau europeen
+  predict_85_new_eu=filter(predict_85_new,between(lon,-15,45),between(lat,30,65))
+  
+  ggplot(data=predict_85_new) + 
+    geom_tile(aes(x=lon,y=lat,fill=delta)) + 
+    geom_sf(data=world, color = 'grey90', fill = 'grey80') +
+    coord_sf(xlim = c(-15, 45), ylim = c(30 , 65),expand = FALSE) +
+    theme_classic() +
+    scale_fill_gradient2(low = 'blue', mid = 'white', high = 'red',name=c("Gain/loss of habitat suitability"),
+                         limits=c(-1,1)) + 
+    scale_color_gradient2(low = 'blue', mid = 'white', high = 'red', guide = NULL) +
+    ggtitle(paste0(sp," between 2000 and 2100"))
+  
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Delta_prediction/",paste0("E_",name_delta,".pdf")),height = 3.5)
+  ggsave(filename= file.path("Figures/Probabilite_presence/Binary/Delta_prediction/",paste0("E_",name_delta,".png")),height = 3.5)
+  
 }
 
+cut_L=NULL
+for (sp in spL){
+  print(sp)
+  load(paste0(filepath,"/",sp,"_cuts_all.Rdata"))
+  cut = cuts_all$cut_off_opt_mean[1]
+  cut_L = c(cut_L,cut)
+}
 
+df_cut = data.frame(Cut = cut_L)
+hist(cut_L)
 
+ggplot(df_cut, aes(x = Cut)) + 
+  geom_histogram(aes(y=after_stat(density)), colour="black", fill="white") +
+  geom_density(alpha=0.1, fill="blue") + geom_vline(aes(xintercept=mean(Cut)),
+                                                    color="red", linetype="dashed", size=0.5) +
+  theme_bw() + xlab("Thresold") + ylab("Number")
+  
+ggsave(filename= file.path("Figures/Probabilite_presence/Binary/","Histogramm_threshold.pdf"))
+ggsave(filename= file.path("Figures/Probabilite_presence/Binary/","Histogramm_threshold.png"))

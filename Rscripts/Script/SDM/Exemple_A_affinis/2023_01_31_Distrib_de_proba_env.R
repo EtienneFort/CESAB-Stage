@@ -23,10 +23,19 @@ ggplot(data=dataset_for_plot_relationship_modele, aes(x=value, y= mean_predict_d
   facet_grid(sp~rep_var,scales="free_x")  + geom_ribbon(aes(x=value,ymin=low,ymax=high,fill=modele),color=NA,alpha=0.2) +
   geom_line() + ylab("Probability of presence") +
   xlab("Environmental value") + theme_bw() +
-  scale_colour_brewer(palette ="Dark2") + scale_fill_brewer(palette ="Dark2")
+  scale_colour_brewer(palette ="Dark2") + scale_fill_brewer(palette ="Dark2") 
 
 
 
+#plot
+quartz(height = 5, width = 9 )
+
+ggplot(data=dataset_for_plot_relationship_modele, aes(x=value, y= mean_predict_dataset,color=modele)) +
+  facet_wrap(~rep_var,scales="free_x",nrow = 2)  + geom_ribbon(aes(x=value,ymin=low,ymax=high,fill=modele),color=NA,alpha=0.2) +
+  geom_line() + ylab("Probability of presence") +
+  xlab("Environmental value") + theme_bw() +
+  scale_colour_brewer(palette ="Dark2") + scale_fill_brewer(palette ="Dark2") +
+  ggtitle("Aldrovandia_affinis")
                                             
 
 

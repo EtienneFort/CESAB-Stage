@@ -659,6 +659,160 @@ spL<-read.table("Dataset/Info/liste_species_final.txt",header=T)$x
 ################################################################################
 
 
+# for(spc in spL[100]){
+#   print(spc)
+#   #importation donnees
+#   load(file = paste0("Dataset/Processed/data_for_SDM/pred_obs/",spc,".Rdata"))
+#   full_df_predict = newdat_last2
+#   
+#   #remove dataset 11  because same as 8
+#   datasetL <- unique(newdat_last2$dataset)
+#   no = which(datasetL==11)
+#   len_no = length(no)
+#   if (len_no > 0){
+#     datasetL = datasetL[-no]
+#   }
+#   
+#   no_df = which(newdat_last2$dataset == 11)
+#   len_no_df = length(no_df)
+#   if (len_no_df > 0){
+#     full_df_predict = full_df_predict[-no_df,]
+#   }
+#   
+#   load(file="Dataset/Output/accuracy/accuracy_all.Rdata")
+#   TSS_all = select(accuracy_all, model, dataset, sp, TSS)
+#   TSS_all_mean_dm = TSS_all %>%
+#     dplyr::group_by(sp,model,dataset) %>%
+#     dplyr::summarise(TSS_model_mean = mean(TSS, na.rm = T))
+#   TSS_all_mean_dm = dcast(TSS_all_mean_dm,sp ~ dataset + model, value.var = "TSS_model_mean")
+#   TSS_sp = filter(TSS_all_mean_dm, sp == spc)
+#   rm_na = which(is.na(TSS_sp[1,]))
+#   rm_na = rm_na[which(rm_na>=36)]
+#   len_rm = length(rm_na)
+#   if (len_rm > 0){
+#     TSS_sp= TSS_sp[,-rm_na]
+#   }
+#   
+#   TSS_all_mean_dts = TSS_all %>%
+#     dplyr::group_by(sp,dataset) %>%
+#     dplyr::summarise(TSS_dataset_mean = mean(TSS, na.rm = T))
+#   TSS_all_mean_dts = dcast(TSS_all_mean_dts,sp ~ dataset, value.var = "TSS_dataset_mean")
+#   TSS_sp_dts = filter(TSS_all_mean_dts, sp == spc)
+#   rm_na_dts = which(is.na(TSS_sp_dts[1,]))
+#   len_rm_dts = length(rm_na_dts)
+#   if (len_rm_dts > 0){
+#     TSS_sp_dts = TSS_sp_dts[,-rm_na_dts]
+#   }
+# 
+#   for (dts in datasetL){
+#     print(dts)
+#     modeleL <- c("brt","gam", "glm", "rfo", "xgb")
+#     name_mod_L = paste0(dts,"_",modeleL)
+#     
+#     full_df <- full_df_predict[which(full_df_predict$dataset == dts), c("Lon","Lat","sp", "occurrence", "modele","predict")]
+#     full_df = dcast(full_df, Lon + Lat + sp + occurrence ~ modele, value.var = "predict")
+#     full_df = select(full_df,c("sp","occurrence",modeleL))
+#     colnames(full_df)[-(1:2)] = paste0(dts,"_",names(full_df)[-(1:2)])
+#     
+# 
+#     for (model in paste0(dts,"_",modeleL)){
+#       if (is.na(full_df[1,model])){
+#         name_mod = names(full_df)[which(names(full_df) == model)]
+#         TSS_sp = select(TSS_sp, - all_of(name_mod))
+#         name_mod_L = name_mod_L[-which(str_detect(name_mod_L,name_mod))] 
+#         name_mod_L = str_sort(name_mod_L)
+#       }
+#     }
+#     
+# 
+#     for (model in paste0(dts,"_",modeleL)){
+#       if (is.na(full_df[1,model])){
+#         full_df = select(full_df,- all_of(model))
+#       }
+#     }
+# 
+#     w = TSS_sp[1,which(str_detect(names(TSS_sp),paste0("\\b",dts,"_")))]
+#     name_na = names(w)[which(is.na(w))] ##
+#     len_name_na = length(name_na)
+#     if (len_name_na > 0){
+#       w = select(w, - all_of(name_na)) 
+#       full_df = full_df[, -which(str_detect(names(full_df),name_na))]
+#       TSS_sp = select(TSS_sp, - all_of(name_na))
+#       name_mod_L = name_mod_L[-which(str_detect(name_mod_L,name_na))] 
+#       name_mod_L = str_sort(name_mod_L)
+#     }
+# 
+#     w = unlist(w)
+#     full_df$"mean" <- apply(full_df[ , name_mod_L ], 1, function(x) {
+#       weighted.mean(x,w) # Weighted average
+#       #mean(x, na.rm = T)           # Simple average
+#     })
+#       
+#     colnames(full_df)[which(names(full_df) == "mean")] = paste0(dts,"_mean")
+#     
+#     cuts <- PresenceAbsence::optimal.thresholds(full_df, threshold = seq(0, 1, by = 0.001),
+#                                                 opt.methods = c(2,3,6,8,9)) #wich.model = mean
+#     if (dts == datasetL[1]){
+#       cuts_all = cuts
+#     } else {
+#       cuts_all = cbind(cuts_all, select(cuts, - Method))
+#     }
+# 
+#   #sans les pred moyennes
+#   cuts_all_no_mean = cuts_all[,-which(str_detect(names(cuts_all),"mean"))]
+#   #cuts_all_no_mean = cuts_all_no_mean[,order(names(cuts_all_no_mean))]
+#   
+#   #TSS_aldro = TSS_aldro[,order(names(TSS_aldro))]
+#   #test = rbind(cuts_all_no_mean[,-1],TSS_aldro[,-1])
+#   
+#   w_no_mean = TSS_sp[1,-1]
+#   w_no_mean = unlist(w_no_mean)
+#   cuts_all_no_mean$"cutoff_TSS_dm_mean" <- apply(cuts_all_no_mean[,-1], 1, function(x) {
+#     weighted.mean(x,w_no_mean) # Weighted average
+#   })
+#   cuts_all_no_mean$"cutoff_TSS_dm_sd" <- apply(cuts_all_no_mean[,-c(1,ncol(cuts_all_no_mean))], 1, function(x) {
+#     sd(x) # Weighted average
+#   })
+#   
+#   #avec les pred moyennes uniquement
+#   cuts_all_mean = cuts_all[,c(1,which(str_detect(names(cuts_all),"mean")))]
+#   
+#   w_mean = TSS_sp_dts[1,-1]
+#   w_mean = unlist(w_mean)
+#   cuts_all_mean$"cutoff_TSS_dts_mean" <- apply(cuts_all_mean[,-1], 1, function(x) {
+#     weighted.mean(x,w_mean) # Weighted average
+#   })
+#   cuts_all_mean$"cutoff_TSS_dts_sd" <- apply(cuts_all_mean[,-c(1,ncol(cuts_all_no_mean))], 1, function(x) {
+#     sd(x) # Weighted average
+#   })
+#   
+#   cuts_all = cbind(spc,cuts_all,cuts_all_no_mean[c(ncol(cuts_all_no_mean)-1,ncol(cuts_all_no_mean))],
+#                    cuts_all_mean[c(ncol(cuts_all_mean)-1,ncol(cuts_all_mean))]) 
+# 
+#   cut_off_opt_mean = mean(cuts_all$cutoff_TSS_dts_mean)
+#   cutt_off_opt_sd = sd(cuts_all$cutoff_TSS_dts_mean)
+#   cuts_all = cbind(cuts_all,cut_off_opt_mean,cutt_off_opt_sd)
+#   
+#   name_cut=paste0(spc,"_cuts_all")
+#   
+#   save(cuts_all, file = file.path(filepath,paste0(name_cut,".Rdata")))   
+# }
+      
+
+# load("Dataset/Output/threshold/Aldrovandia_affinis_cuts_all.Rdata")
+# ############################
+# filepath <- file.path("Dataset/Output/threshold")
+# world <- ne_countries(scale = "medium", returnclass = "sf")
+
+
+
+
+
+################################################################################
+############################ toutes especes tous datasets ############################ 
+################################################################################
+
+
 for(spc in spL){
   print(spc)
   #importation donnees
@@ -678,36 +832,35 @@ for(spc in spL){
   if (len_no_df > 0){
     full_df_predict = full_df_predict[-no_df,]
   }
-  
-  load(file="Dataset/Output/accuracy/accuracy_all.Rdata")
-  TSS_all = select(accuracy_all, model, dataset, sp, TSS)
-  TSS_all_mean_dm = TSS_all %>%
-    dplyr::group_by(sp,model,dataset) %>%
-    dplyr::summarise(TSS_model_mean = mean(TSS, na.rm = T))
-  TSS_all_mean_dm = dcast(TSS_all_mean_dm,sp ~ dataset + model, value.var = "TSS_model_mean")
-  TSS_sp = filter(TSS_all_mean_dm, sp == spc)
-  rm_na = which(is.na(TSS_sp[1,]))
-  rm_na = rm_na[which(rm_na>=36)]
-  len_rm = length(rm_na)
-  if (len_rm > 0){
-    TSS_sp= TSS_sp[,-rm_na]
-  }
-  
-  TSS_all_mean_dts = TSS_all %>%
-    dplyr::group_by(sp,dataset) %>%
-    dplyr::summarise(TSS_dataset_mean = mean(TSS, na.rm = T))
-  TSS_all_mean_dts = dcast(TSS_all_mean_dts,sp ~ dataset, value.var = "TSS_dataset_mean")
-  TSS_sp_dts = filter(TSS_all_mean_dts, sp == spc)
-  rm_na_dts = which(is.na(TSS_sp_dts[1,]))
-  len_rm_dts = length(rm_na_dts)
-  if (len_rm_dts > 0){
-    TSS_sp_dts = TSS_sp_dts[,-rm_na_dts]
-  }
-  
+
+  rm_TSS = NULL
   for (dts in datasetL){
     print(dts)
     modeleL <- c("brt","gam", "glm", "rfo", "xgb")
     name_mod_L = paste0(dts,"_",modeleL)
+    
+    load(file="Dataset/Output/accuracy/accuracy_all.Rdata")
+    TSS_all = select(accuracy_all, model, dataset, sp, TSS)
+    TSS_all_mean_dm = TSS_all %>%
+      dplyr::group_by(sp,model,dataset) %>%
+      dplyr::summarise(TSS_model_mean = mean(TSS, na.rm = T))
+    TSS_all_mean_dm = dcast(TSS_all_mean_dm,sp ~ dataset + model, value.var = "TSS_model_mean")
+    TSS_sp = filter(TSS_all_mean_dm, sp == spc)
+    if (dts == datasetL[1]){
+      TSS_sp_final = TSS_sp
+    }
+    
+    
+    TSS_all_mean_dts = TSS_all %>%
+      dplyr::group_by(sp,dataset) %>%
+      dplyr::summarise(TSS_dataset_mean = mean(TSS, na.rm = T))
+    TSS_all_mean_dts = dcast(TSS_all_mean_dts,sp ~ dataset, value.var = "TSS_dataset_mean")
+    TSS_sp_dts = filter(TSS_all_mean_dts, sp == spc)
+    rm_na_dts = which(is.na(TSS_sp_dts[1,]))
+    len_rm_dts = length(rm_na_dts)
+    if (len_rm_dts > 0){
+      TSS_sp_dts = TSS_sp_dts[,-rm_na_dts]
+    }
     
     full_df <- full_df_predict[which(full_df_predict$dataset == dts), c("Lon","Lat","sp", "occurrence", "modele","predict")]
     full_df = dcast(full_df, Lon + Lat + sp + occurrence ~ modele, value.var = "predict")
@@ -718,17 +871,19 @@ for(spc in spL){
     for (model in paste0(dts,"_",modeleL)){
       if (is.na(full_df[1,model])){
         name_mod = names(full_df)[which(names(full_df) == model)]
+        pos_TSS = which(names(TSS_sp) == name_mod)
+        rm_TSS = c(rm_TSS,pos_TSS)
         TSS_sp = select(TSS_sp, - all_of(name_mod))
         name_mod_L = name_mod_L[-which(str_detect(name_mod_L,name_mod))] 
         name_mod_L = str_sort(name_mod_L)
       }
     }
     
+    
     for (model in paste0(dts,"_",modeleL)){
       if (is.na(full_df[1,model])){
         full_df = select(full_df,- all_of(model))
       }
-      
     }
     
     w = TSS_sp[1,which(str_detect(names(TSS_sp),paste0("\\b",dts,"_")))]
@@ -737,6 +892,7 @@ for(spc in spL){
     if (len_name_na > 0){
       w = select(w, - all_of(name_na)) 
       full_df = full_df[, -which(str_detect(names(full_df),name_na))]
+      #rm_TSS = c(rm_TSS,which(str_detect(names(TSS_sp),name_na)))
       TSS_sp = select(TSS_sp, - all_of(name_na))
       name_mod_L = name_mod_L[-which(str_detect(name_mod_L,name_na))] 
       name_mod_L = str_sort(name_mod_L)
@@ -747,7 +903,7 @@ for(spc in spL){
       weighted.mean(x,w) # Weighted average
       #mean(x, na.rm = T)           # Simple average
     })
-      
+    
     colnames(full_df)[which(names(full_df) == "mean")] = paste0(dts,"_mean")
     
     cuts <- PresenceAbsence::optimal.thresholds(full_df, threshold = seq(0, 1, by = 0.001),
@@ -758,7 +914,18 @@ for(spc in spL){
       cuts_all = cbind(cuts_all, select(cuts, - Method))
     }
   }
-   
+
+  
+  rm_na_TSS = which(is.na(TSS_sp_final[1,]))
+  rm_TSS = c(rm_TSS,rm_na_TSS)
+  rm_TSS = sort(unique(rm_TSS))
+
+  len_rm = length(rm_TSS)
+  if (len_rm > 0){
+    TSS_sp_final= TSS_sp_final[,-rm_TSS]
+  }
+  
+  
   #sans les pred moyennes
   cuts_all_no_mean = cuts_all[,-which(str_detect(names(cuts_all),"mean"))]
   #cuts_all_no_mean = cuts_all_no_mean[,order(names(cuts_all_no_mean))]
@@ -766,7 +933,7 @@ for(spc in spL){
   #TSS_aldro = TSS_aldro[,order(names(TSS_aldro))]
   #test = rbind(cuts_all_no_mean[,-1],TSS_aldro[,-1])
   
-  w_no_mean = TSS_sp[1,-1]
+  w_no_mean = TSS_sp_final[1,-1]
   w_no_mean = unlist(w_no_mean)
   cuts_all_no_mean$"cutoff_TSS_dm_mean" <- apply(cuts_all_no_mean[,-1], 1, function(x) {
     weighted.mean(x,w_no_mean) # Weighted average
@@ -789,25 +956,18 @@ for(spc in spL){
   
   cuts_all = cbind(spc,cuts_all,cuts_all_no_mean[c(ncol(cuts_all_no_mean)-1,ncol(cuts_all_no_mean))],
                    cuts_all_mean[c(ncol(cuts_all_mean)-1,ncol(cuts_all_mean))]) 
-
+  
   cut_off_opt_mean = mean(cuts_all$cutoff_TSS_dts_mean)
   cutt_off_opt_sd = sd(cuts_all$cutoff_TSS_dts_mean)
   cuts_all = cbind(cuts_all,cut_off_opt_mean,cutt_off_opt_sd)
   
   name_cut=paste0(spc,"_cuts_all")
-  
+
   save(cuts_all, file = file.path(filepath,paste0(name_cut,".Rdata")))   
 }
-      
-
-# load("Dataset/Output/threshold/Aldrovandia_affinis_cuts_all.Rdata")
-# ############################
-# filepath <- file.path("Dataset/Output/threshold")
-# world <- ne_countries(scale = "medium", returnclass = "sf")
 
 
-
-
+##### 
 
 
 

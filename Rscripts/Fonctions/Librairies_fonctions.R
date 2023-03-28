@@ -11,11 +11,15 @@ library(ggridges)
 library(viridis)
 library(hrbrthemes)
 library("stringr")
+library(ggbreak) 
+library(shades)
+library(ggrepel)
 
 
 #remaniement de data
 library(dplyr)
 library(reshape2)
+library(scales)
 
 
 #couleur
@@ -24,3 +28,13 @@ library(wesanderson)
 library(RColorBrewer)
 
 library(sjmisc)
+
+#analyses 
+library(cluster)
+library(vegan)
+library(labdsv)
+
+#?
+library(ks)
+library(TPD)
+library(mgcv)
