@@ -1,0 +1,366 @@
+---
+title: "07_change_in_community"
+author: "Noemie Coulon"
+date: "2023-01-27"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+if(!require(plyr)){install.packages("plyr"); library(plyr)}
+if(!require(tidyverse)){install.packages("tidyverse"); library(tidyverse)}
+if(!require(rnaturalearth)){install.packages("rnaturalearth"); library(rnaturalearth)}
+if(!require(rnaturalearthdata)){install.packages("rnaturalearthdata"); library(rnaturalearthdata)}
+if(!require(rgeos)){install.packages("rgeos"); library(rgeos)}
+if(!require(ggthemes)){install.packages("ggthemes"); library(ggthemes)}
+if(!require(trend)){install.packages("trend"); library(trend)}
+
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+```
+
+# SET DIRECTORIES
+```{r}
+localDir = "." 
+dataDir = file.path(localDir, "data") 
+ModelDir = file.path(localDir, "models") 
+MixingDir = file.path(localDir, "mixing")
+MFDir = file.path(localDir, "model_fit")
+```
+
+# COMMUNITY STRUCTURE
+## Formating data
+```{r}
+list_csv <- list.files(paste0(dataDir, "/grid/predictions/community"), pattern = ".csv", full.names = TRUE)
+
+all_csv <- lapply(list_csv, readr::read_csv)
+df_csv <- dplyr::bind_rows(all_csv)
+write.csv(df_csv, file = paste0(MFDir, "/df_S_RCP_CWM_traits_3.csv"), row.names = F)
+```
+
+## Loading data
+```{r}
+community <- read.csv(paste0(MFDir, "/df_S_RCP_CWM_traits_3.csv"))
+community <- unite(community, id, c("Lon", "Lat"), sep = "_", remove = F)
+
+traits <- read_delim(paste0(dataDir, "/all_traits.csv"), delim = ";", escape_double = FALSE, trim_ws = TRUE)
+traits <- dplyr::select(traits,
+                        taxon,
+                        tl,
+                        fecundity,
+                        length.max,
+                        length.maturity,
+                        bathy.pref,
+                        lat.distri) 
+
+sp <- read.csv(paste0(MFDir, "./trend_cell_traits_3.csv"))
+sp <- unite(sp, id, c("Lon", "Lat"), remove = F)
+sp <- merge(sp, traits)
+```
+
+## CWM - Sen's slope
+
+### Calculation
+```{r}
+trend_stat <- data.frame(Sen = NA, pvalue = NA, id = NA, geo = NA)
+
+for (i in levels(as.factor(community$id))){
+  cell_i <- filter(community, id == i)
+  cell_i <- arrange(cell_i, Year)
+  
+  try(test_S_i <- sens.slope(cell_i$S_i, conf.level = 0.95))
+  trend_i <- data.frame(Sen = test_S_i$estimates, 
+                        pvalue = test_S_i$p.value, 
+                        id = i, 
+                        geo = "S")
+ 
+  try(test_tl_i <- sens.slope(cell_i$tl, conf.level = 0.95))
+  trend_i <- rbind(trend_i, 
+                   data.frame(Sen = test_tl_i$estimates, 
+                              pvalue = test_tl_i$p.value,
+                              id = i,
+                              geo = "tl"))
+  
+  try(test_fecundity_i <- sens.slope(cell_i$fecundity, conf.level = 0.95))
+  trend_i <- rbind(trend_i, 
+                   data.frame(Sen = test_fecundity_i$estimates,
+                              pvalue = test_fecundity_i$p.value, 
+                              id = i, 
+                              geo = "fecundity"))
+  
+  try(test_Lmax_i <- sens.slope(cell_i$length.max, conf.level = 0.95))
+  trend_i <- rbind(trend_i, 
+                   data.frame(Sen = test_Lmax_i$estimates, 
+                              pvalue = test_Lmax_i$p.value,
+                              id = i,
+                              geo = "Lmax"))
+  
+  try(test_Lm_i <- sens.slope(cell_i$length.maturity, conf.level = 0.95))
+  trend_i <- rbind(trend_i, 
+                   data.frame(Sen = test_Lm_i$estimates,
+                              pvalue = test_Lm_i$p.value, 
+                              id = i, 
+                              geo = "Lm"))
+  
+  try(test_bathy_i <- sens.slope(cell_i$bathy.pref, conf.level = 0.95))
+  trend_i <- rbind(trend_i, 
+                   data.frame(Sen = test_bathy_i$estimates,
+                              pvalue = test_bathy_i$p.value, 
+                              id = i, 
+                              geo = "bathy"))
+  
+  try(test_distri_i <- sens.slope(cell_i$lat.distri, conf.level = 0.95))
+  trend_i <- rbind(trend_i, 
+                   data.frame(Sen = test_distri_i$estimates, 
+                              pvalue = test_distri_i$p.value,
+                              id = i,
+                              geo = "distri"))
+
+  trend_stat <- rbind(trend_stat, trend_i)
+}
+
+trend_stat <- trend_stat[-1, ]
+write.csv(trend_stat, file = paste0(MFDir, "/community_trend_traits_3.csv"), row.names = F)
+
+trend_stat <- filter(trend_stat, pvalue < 0.05)
+trend_stat
+```
+
+### Map
+```{r}
+trend_stat <- read.csv(paste0(MFDir, "/community_trend_traits_3.csv"))
+
+trend_stat <- filter(trend_stat, pvalue < 0.05)
+
+trend_stat <- separate(trend_stat , id, c("Lon", "Lat"), sep = "_")
+trend_stat$Lon <- as.numeric(trend_stat$Lon)
+trend_stat$Lat <- as.numeric(trend_stat$Lat)
+```
+```{r}
+grid <- read.csv(paste0(dataDir, "/grid_projection.csv"))
+grid <- grid[, -1]
+
+for (i in levels(as.factor(trend_stat$geo))){
+  trend_geo_i <- dplyr::filter(trend_stat, geo == i)
+  geo_i <- sub("_", " ", i)
+  
+  plot <- ggplot(world) +
+    geom_tile(data = grid, aes(x = Lon, y = Lat), fill = "#eee9e9") +
+    geom_tile(data = trend_geo_i, aes(x = Lon, y = Lat, fill = Sen)) +
+    geom_sf(data = world, fill = alpha("lightgrey", 1)) +
+    coord_sf(xlim = c(min(grid$Lon), max(grid$Lon)), 
+           ylim = c(min(grid$Lat), max(grid$Lat))) +
+    theme_bw(150) +
+    theme(panel.grid = element_blank(), 
+          title = element_blank(),
+          legend.title = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_gradient2(low = "#7289da", mid = "white", high = "#d9534f", midpoint = 0,
+                         breaks = c(min(trend_geo_i$Sen, na.rm = T), 0, max(trend_geo_i$Sen, na.rm = T))) +
+    guides(fill = guide_colourbar(barwidth = 90,
+                                barheight = 2))
+  
+  try(dev.off())  
+    png(paste0("./output/traits_phylo_3/change/", i,  "_change_poly_traits_3.png"), height = 3000, width = 2100)
+    print(plot)
+    dev.off()
+}
+```
+
+
+## CWM - Decompositioning
+
+### Filtering significative CWM trend
+```{r}
+trend_stat <- read.csv(paste0(MFDir, "/community_trend_traits_3.csv"))
+trend_stat <- separate(trend_stat , id, c("Lon", "Lat"), sep = "_", remove = F)
+trend_stat$Lon <- as.numeric(trend_stat$Lon)
+trend_stat$Lat <- as.numeric(trend_stat$Lat)
+trend_stat <- filter(trend_stat, pvalue < 0.05)
+```
+
+
+### CWM average per cell
+```{r}
+community <- filter(community, id %in% trend_stat$id)
+
+CWMm <- data.frame(id = NA, Lon = NA, Lat = NA, tl = NA, fecundity = NA, length.max = NA, length.maturity = NA, bathy.pref = NA, lat.distri = NA)
+
+for (i in levels(as.factor(community$id))) {
+  community_i <- dplyr::filter(community, id == i)
+  CWM_i <-  cbind(community_i[1, 1:3],
+                  as.data.frame(t(apply(community_i[, 8:13], 2, mean))))
+  CWMm <- rbind(CWMm, CWM_i)
+}
+
+CWMm <- CWMm[-1, ]
+
+write.csv(CWMm, paste0(MFDir, "./CWM_mean_per_cell.csv"), row.names = F)
+```
+
+### Species classification
+```{r}
+CWMm <- read.csv(paste0(MFDir, "./CWM_mean_per_cell.csv"))
+sp_class <- sp[1, ]
+
+sp <- filter(sp, id %in% CWMm$id)
+```
+```{r}
+for (i in levels(as.factor(sp$id))){
+  
+  cell_i <- filter(sp, id == i)
+  CWMm_i <- filter(CWMm, id == i)
+  
+  for (j in 1:nrow(cell_i)){
+    cell_i[j, 7:ncol(cell_i)] <- (cell_i[j, 7:ncol(cell_i)] - CWMm_i[1, 4:ncol(CWMm_i)])
+  }
+  
+  sp_class <- rbind(sp_class, cell_i)
+}
+
+sp_class <- sp_class[-1, ]
+
+write.csv(sp_class, paste0(MFDir, "./species_classification_per_cell.csv"), row.names = F)
+```
+
+### Processes strength & accuracy
+```{r}
+sp_class <- read.csv(paste0(MFDir, "./species_classification_per_cell.csv"))
+sp_class
+```
+```{r}
+process <- data.frame(id = NA, trait = NA, CWM = NA, value = NA)
+accuracy <- data.frame(id = NA, trait = NA, value = NA)
+```
+```{r}
+for (i in levels(as.factor(sp$id))){
+  
+  sp_i <- dplyr::filter(sp_class, id == i)
+  
+  for (j in 7:ncol(sp_i)){
+    trait_j <- cbind(sp_i[, 1:6], trait = sp_i[, j])
+    
+    # CWM increased
+    j_one <- filter(trait_j, Sen > 0, trait > 0)
+    j_one <- sum(abs(j_one$Sen * j_one$trait))
+    j_two <- filter(trait_j, Sen < 0, trait < 0)
+    j_two <- sum(abs(j_two$Sen * j_two$trait))
+    CWM_increased <- j_one - j_two
+  
+    process_j <- data.frame(id = i, trait = colnames(sp_i[j]), CWM = "increased", value = CWM_increased)
+    
+    # CWM decreased
+    j_three <- filter(trait_j, Sen > 0, trait < 0)
+    j_three <- sum(abs(j_three$Sen * j_three$trait))
+    j_four <- filter(trait_j, Sen < 0, trait > 0)
+    j_four <- sum(abs(j_four$Sen * j_four$trait))
+    CWM_decreased <- j_three - j_four
+    
+    process_j <- rbind(process_j,
+                       data.frame(id = i, trait = colnames(sp_i[j]), CWM = "decreased", value = CWM_decreased))
+    
+    accuracy_j <- data.frame (id = i, 
+                        trait = colnames(sp_i[j]),
+                        value = (j_one + j_two) - (j_three + j_four))
+                        
+    
+    process <- rbind(process, process_j)
+    accuracy <- rbind(accuracy, accuracy_j)
+  }
+}
+
+process <- process[-1, ]
+process <- separate(process , id, c("Lon", "Lat"), sep = "_", remove = F)
+process$Lon <- as.numeric(process$Lon)
+process$Lat <- as.numeric(process$Lat)
+write.csv(process, paste0(MFDir, "./process_strength_per_cell.csv"), row.names = F)
+
+accuracy <- accuracy[-1, ]
+accuracy <- separate(accuracy , id, c("Lon", "Lat"), sep = "_", remove = F)
+accuracy$Lon <- as.numeric(accuracy$Lon)
+accuracy$Lat <- as.numeric(accuracy$Lat)
+write.csv(accuracy, paste0(MFDir, "./accuracy_per_cell.csv"), row.names = F)
+```
+
+### Map
+```{r}
+process <- read.csv(paste0(MFDir, "./process_strength_per_cell.csv"))
+grid <- read.csv(paste0(dataDir, "/grid_projection.csv"))
+grid <- grid[-1,]
+```
+```{r}
+for (i in levels(as.factor(process$trait))){
+  
+  process_i <- dplyr::filter(process, trait == i)
+  
+  for (j in levels(as.factor(process_i$CWM))){
+    
+    process_j <- dplyr::filter(process_i, CWM == j)
+    
+    map <- ggplot(world) +
+    geom_tile(data = grid, aes(x = Lon, y = Lat), fill = "#eee9e9") +
+    geom_tile(data = process_j, aes(x = Lon, y = Lat, fill = value)) +
+    geom_sf(data = world, fill = alpha("lightgrey", 1)) +
+    coord_sf(xlim = c(min(grid$Lon), max(grid$Lon)), 
+           ylim = c(min(grid$Lat), max(grid$Lat))) +
+    theme_bw(150) +
+    theme(panel.grid = element_blank(),
+          title = element_blank(),
+          legend.title = element_blank(),
+          legend.position = "bottom")  +
+    scale_fill_gradient2(low = "#9e379f", mid = "white", high = "#ffe600", midpoint = 0,
+                         breaks = c(min(process_j$value, na.rm = T), 0, max(process_j$value, na.rm = T))) +
+    guides(fill = guide_colourbar(barwidth = 90,
+                                barheight = 2)) 
+      
+    try(dev.off())  
+    png(paste0("./output/traits_phylo_3/change/strenght/CWM_process_strength_", i, "_", j,  "_poly_traits_3.png"), height = 3000, width = 2100)
+    print(map)
+    try(dev.off())
+  }
+}
+```
+
+# ACCURACY OF THE METHOD
+
+## Loading data
+```{r}
+trend_stat <- read.csv(paste0(MFDir, "/community_trend_traits_3.csv"))
+trend_stat <- filter(trend_stat, pvalue < 0.05)
+trend_stat <- dplyr::filter(trend_stat, geo != "S")
+colnames(trend_stat)[4] <- "trait"
+
+accuracy <- read.csv(paste0(MFDir, "./accuracy_per_cell.csv"))
+accuracy <- accuracy[, -c(2,3)]
+accuracy <- dplyr::filter(accuracy, id %in% trend_stat$id)
+
+accuracy$trait[accuracy$trait == "length.maturity"] <- "Lm"
+accuracy$trait[accuracy$trait == "length.max"] <- "Lmax"
+accuracy$trait[accuracy$trait == "bathy.pref"] <- "bathy"
+accuracy$trait[accuracy$trait == "lat.distri"] <- "distri"
+
+trend_accuracy <- merge(trend_stat, accuracy)
+```
+
+## Stat
+```{r}
+for (i in levels(as.factor(trend_accuracy$trait))){
+  
+  trend_accuracy_i <- dplyr::filter(trend_accuracy, trait == i)
+  print(i)
+  print(summary(lm(value ~ Sen, data = trend_accuracy_i)))
+}
+```
+
+## Plot
+```{r}
+ggplot(aes(x = Sen, y = value), data = trend_accuracy) +
+  geom_point(alpha = .5)+
+  theme_bw(25) +
+    theme(panel.grid = element_blank()) +
+    xlab("CWM rates of change") + 
+    ylab("Difference between processes") +
+  geom_smooth(method = "lm") +
+  facet_wrap(~ trait, scale = "free") 
+```

@@ -1,5 +1,7 @@
 #Librairies et fonctions souvent utilisees, EF, 02/02/2023
 
+#tidyverse
+library(tidyverse)
 
 #plot packages
 library(ggplot2)
@@ -14,12 +16,17 @@ library("stringr")
 library(ggbreak) 
 library(shades)
 library(ggrepel)
+library(ggsn)
+library(ggspatial)
+library(rphylopic)
+library(dotwhisker)
 
 
 #remaniement de data
 library(dplyr)
 library(reshape2)
 library(scales)
+library(data.table)
 
 
 #couleur
@@ -33,8 +40,18 @@ library(sjmisc)
 library(cluster)
 library(vegan)
 library(labdsv)
+library(FactoMineR)
+library(randomForest)
 
-#?
+
+
 library(ks)
 library(TPD)
 library(mgcv)
+library(phylin)
+library(gstat)
+library (sp)
+library (automap)
+
+
+# if(!require(reshape2)){install.packages("reshape2"); library(reshape2)}
